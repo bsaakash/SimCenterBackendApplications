@@ -1,0 +1,66 @@
+{
+    "Applications": {
+        "UQ": {
+            "Application": "UCSD-UQ",
+            "ApplicationData": {
+            }
+        },
+        "FEM": {
+            "Application": "OpenSees",
+            "ApplicationData": {
+        "MS_Path": "{Current_Dir}/",
+        "mainScript": "model.tcl"
+        }
+        }
+    },
+    "EDP": [
+        {
+            "length": 1,
+            "name": "lambda",
+            "type": "scalar"
+        },
+        {
+            "length": 1,
+            "name": "phi",
+            "type": "scalar"
+        }
+    ],
+    "UQ": {
+        "calDataFile": "eigData.csv",
+        "calDataFilePath": "{Current_Dir}/.",
+        "logLikelihoodFile": "",
+        "logLikelihoodPath": "",
+        "numParticles": 200,
+        "seed": 0,
+        "uqEngine": "UCSD-UQ",
+        "uqType": "Transitional Markov chain Monte Carlo"
+    },
+    "localAppDir": "/Users/aakash/SimCenter/quoFEM/backend",
+    "python": "/Users/aakash/.pyenv/shims/python",
+    "randomVariables": [
+        {
+            "distribution": "Uniform",
+            "inputType": "Parameters",
+            "lowerbound": 766.89,
+            "name": "k1",
+            "refCount": 0,
+            "upperbound": 2108.94,
+            "value": "RV.k1",
+            "variableClass": "Uncertain"
+        },
+        {
+            "distribution": "Uniform",
+            "inputType": "Parameters",
+            "lowerbound": 383.44,
+            "name": "k2",
+            "refCount": 0,
+            "upperbound": 1150.33,
+            "value": "RV.k2",
+            "variableClass": "Uncertain"
+        }
+    ],
+    "remoteAppDir": "/home1/00477/tg457427/SimCenterBackendApplications/v2.3.0",
+    "uqResults": {
+    },
+    "workingDir": "/Users/aakash/Documents/quoFEM/LocalWorkDir"
+}
