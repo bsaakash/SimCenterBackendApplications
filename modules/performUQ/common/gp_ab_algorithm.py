@@ -320,7 +320,7 @@ class GP_AB_Algorithm:
         simulation_numbers = np.arange(
             simulation_number_start, simulation_number_start + len(model_parameters)
         )
-        iterable = zip(simulation_numbers, model_parameters)
+        iterable = zip(simulation_numbers, model_parameters, strict=False)
 
         wrapped_func = partial(
             uq_utilities.safe_evaluate_model_for_gp_ab,
@@ -1054,11 +1054,23 @@ class GP_AB_Algorithm:
                 candidates_exploit, self.stage_sample_counts = (
                     self._get_exploitation_candidates()
                 )
+                # Determine method parameters for exploitation
+                use_msew_exploit = True  # Set based on config
+                exploit_method = 'MSEw' if use_msew_exploit else 'IMSEw'
+                exploit_beta = (
+                    None if use_msew_exploit else (2.0 * self.input_dimension)
+                )
+                exploit_seed = (
+                    None if use_msew_exploit else (42 + self.iteration_number)
+                )
                 save_exploitation_candidates_by_stage_json(
                     res_dir
                     / f'exploitation_candidates_{self.iteration_number}.json',
                     candidates_exploit,
                     self.stage_sample_counts,
+                    method=exploit_method,
+                    beta=exploit_beta,
+                    seed=exploit_seed,
                 )
 
                 self.kde = GaussianKDE(candidates_exploit)
@@ -1099,10 +1111,22 @@ class GP_AB_Algorithm:
                         self.num_candidate_training_points
                     )
                 )
+                # Determine method parameters for exploration
+                use_msew_explore = False  # Set based on config
+                explore_method = 'MSEw' if use_msew_explore else 'IMSEw'
+                explore_beta = (
+                    None if use_msew_explore else (2.0 * self.input_dimension)
+                )
+                explore_seed = (
+                    None if use_msew_explore else (42 + self.iteration_number)
+                )
                 save_exploration_candidates_json(
                     res_dir / f'exploration_candidates_{self.iteration_number}.json',
                     candidates_explore,
                     self.iteration_number,
+                    method=explore_method,
+                    beta=explore_beta,
+                    seed=explore_seed,
                 )
 
                 self.exploration_training_points = np.empty(
@@ -1114,9 +1138,9 @@ class GP_AB_Algorithm:
                             current_inputs,
                             self.n_explore,
                             candidates_explore,
-                            # use_mse_w=False,
-                            use_mse_w=True,
+                            use_mse_w=use_msew_explore,
                             weights=None,
+                            seed=explore_seed,
                         )
                     )
                     current_inputs = np.vstack(
@@ -1311,7 +1335,7 @@ class GP_AB_Algorithm:
         """
         # Step 1: Construct prediction headers
         pred_headers = []
-        for name, length in zip(output_names_list, output_length_list):
+        for name, length in zip(output_names_list, output_length_list, strict=False):
             if length == 1:
                 pred_headers.append(name)
             else:
@@ -1445,6 +1469,9 @@ def save_exploration_candidates_json(
     samples: np.ndarray,
     iteration: int,
     generation_method: str = 'latin_hypercube_sampling',
+    method: str = 'IMSEw',
+    beta: float | None = None,
+    seed: int | None = None,
 ):
     """
     Save exploration candidate samples to a JSON file.
@@ -1459,6 +1486,12 @@ def save_exploration_candidates_json(
         The iteration number when these candidates were generated.
     generation_method : str, optional
         Method used to generate candidates (default: "latin_hypercube_sampling").
+    method : str, optional
+        DoE method used: 'MSEw' or 'IMSEw' (default: 'IMSEw').
+    beta : float | None, optional
+        Beta parameter if IMSEw is used (default: None).
+    seed : int | None, optional
+        Random seed for LHS generation if IMSEw is used (default: None).
 
     Notes
     -----
@@ -1469,6 +1502,9 @@ def save_exploration_candidates_json(
     - 'iteration': iteration number
     """
     output = {
+        'method': method,
+        'beta': beta,
+        'seed': seed,
         'exploration_candidates': samples.tolist(),
         'num_candidates': len(samples),
         'generation_method': generation_method,
@@ -1486,7 +1522,12 @@ def save_exploration_candidates_json(
 
 
 def save_exploitation_candidates_by_stage_json(
-    out_file: Path, samples: np.ndarray, stage_sample_counts: dict[int, int]
+    out_file: Path,
+    samples: np.ndarray,
+    stage_sample_counts: dict[int, int],
+    method: str = 'MSEw',
+    beta: float | None = None,
+    seed: int | None = None,
 ):
     """
     Save exploitation candidate samples grouped by TMCMC stage to a JSON file.
@@ -1499,7 +1540,15 @@ def save_exploitation_candidates_by_stage_json(
         Array of shape (n_candidates, n_parameters), assumed to be ordered stage-by-stage.
     stage_sample_counts : dict[int, int]
         Dictionary mapping stage number to number of samples drawn from that stage.
+    method : str, optional
+        DoE method used: 'MSEw' or 'IMSEw' (default: 'MSEw').
+    beta : float | None, optional
+        Beta parameter if IMSEw is used (default: None).
+    seed : int | None, optional
+        Random seed for LHS generation if IMSEw is used (default: None).
 
+    Notes
+    -----
     The output JSON file will have:
     - 'stage_sample_counts': summary of counts per stage
     - 'samples_by_stage': mapping of stage number to list of samples
@@ -1513,6 +1562,9 @@ def save_exploitation_candidates_by_stage_json(
         start_idx = end_idx
 
     output = {
+        'method': method,
+        'beta': beta,
+        'seed': seed,
         'stage_sample_counts': {str(k): v for k, v in stage_sample_counts.items()},
         'samples_by_stage': samples_by_stage,
     }
@@ -1719,7 +1771,7 @@ def preprocess(input_arguments):
 
     with cal_data_file.open('r') as f_in, tmp_file.open('w') as f_out:
         headings = 'Exp_num interface '
-        for name, count in zip(edp_names_list, edp_lengths_list):
+        for name, count in zip(edp_names_list, edp_lengths_list, strict=False):
             if count == 1:
                 headings += f'{name} '
             else:
